@@ -1,18 +1,30 @@
-const { gql } = require('apollo-server-express');
+import { prop, Ref } from "@typegoose/typegoose";
+import * as mongoose from 'mongoose';
+import { Field, ObjectType } from "type-graphql";
 
-const typeDefs = gql`
-    type User {
-        id: ID!
-        email: String!
-        login: String!
-        password: String!
-    },
-    type Query {
-        login(email: String!, password: String!):  
-    },
-    type Mutation {
-        registration(email: String!, login: String!, password: String!): User
-    }
-`;
+import { Project } from "./project";
 
-module.exports = typeDefs;
+@ObjectType()
+export class User {
+    readonly _id: mongoose.Types.ObjectId;
+
+    @Field()
+    @prop({ unique: true, required: true })
+    email: string;
+
+    @Field()
+    @prop({ required: true })
+    password: string;
+
+    @Field()
+    @prop({ unique: true, required: true })
+    username: string;
+
+    @Field(_ => [Project], { nullable: true })
+    @prop({ ref: () => Project, default: [] })
+    projects?: Ref<Project>[];
+
+    @Field()
+    @prop({ unique: true, required: true })
+    accessToken: string;
+};

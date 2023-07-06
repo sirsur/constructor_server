@@ -1,40 +1,63 @@
 import express from 'express';
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 import { ApolloServer } from 'apollo-server-express';
-const typeDefs = require('./entities/user');
-const resolvers = require('./resolvers/user');
+import { buildSchema } from 'type-graphql';
+import { userResolvers } from './resolvers/userResolver';
+import { projectResolver } from './resolvers/projectResolver';
+import cookieParser from 'cookie-parser';
+import cors from 'cors';
+import { getModelForClass } from "@typegoose/typegoose";
+import bodyParser from 'body-parser';
+
+import { User } from "./entities/user";
+import { Project } from "./entities/project";
+
+export const ProjectModel = getModelForClass(Project);
+export const UserModel = getModelForClass(User);
 
 require('dotenv').config(); 
 
 const PORT = process.env.PORT || 4000;
 
-const uri = process.env.ATLAS_URI;
+const uri = process.env.ATLAS_URI!;
 
-const main = async () => {
+const startServer = async () => {
     const app = express();
 
     const server = new ApolloServer({
-        typeDefs,
-        resolvers
-    });
+        schema: await buildSchema({
+            resolvers: [userResolvers, projectResolver]
+        }),
+        context: ({ req, res }) => ({
+            req, res
+        }),
+    });     
 
-    server.applyMiddleware({
-        app
-    });
+    app.use(cors({ 
+        credentials: true, 
+        origin: 'http://localhost:3000' 
+    }));
 
-    app.get("/", (_, res) => {
-        res.send("Hi");
-    });
+    app.use(cookieParser());
+    app.use(bodyParser.json({ limit: '100mb' }));
 
     mongoose.connect(uri, {
         connectTimeoutMS: 5000
     }).catch((err: any) => console.log(err));
+
+    await server.start();
+
+    server.applyMiddleware({
+        app,
+        path: '/graphql',
+        cors: false
+    });
 
     app.listen(PORT, () => {
         console.log("Server listen to port " + PORT);
     });
 };
 
-main().catch((err) => {
+startServer().catch((err) => {
     console.error(err);
 });
